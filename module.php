@@ -191,7 +191,7 @@
 		public function fortify(string $hostname, string $path = '', string $mode = 'max', $args = []): bool
 		{
 			$approot = $this->getAppRoot($hostname, $path);
-			return parent::fortify($hostname, $path, $mode) && $this->setLockdown($approot, $mode === 'max');
+			return parent::fortify($hostname, $path, $mode, $args) && $this->setLockdown($approot, $mode === 'max');
 		}
 
 		/**
