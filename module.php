@@ -187,12 +187,8 @@
 		 */
 		public function fortify(string $hostname, string $path = '', string $mode = 'max', $args = []): bool
 		{
-			$approot = $this->getAppRoot($hostname, $path);
-			$ret = parent::fortify($hostname, $path, $mode, $args) && $this->setLockdown($approot, $mode === 'max');
-			if ($ret) {
-				$this->file_set_acls($approot . '/config/config.php', [$this->web_get_user($hostname, $path) => 'rw']);
-			}
-			return $ret;
+			return parent::fortify($hostname, $path, $mode, $args) &&
+				$this->setLockdown($hostname, $path, $mode === 'max');
 		}
 
 		/**
@@ -415,13 +411,22 @@
 		 */
 		public function unfortify(string $hostname, string $path = ''): bool
 		{
-			return parent::unfortify($hostname, $path) && $this->setLockdown($this->getAppRoot($hostname, $path), false);
+			return parent::unfortify($hostname, $path) &&
+				$this->setLockdown($hostname, $path, false);
 		}
 
-		private function setLockdown(string $approot, bool $enabled): bool
+		private function setLockdown(string $hostname, string $path, bool $enabled): bool
 		{
-			return $this->writeConfiguration($approot, 'config_is_read_only', $enabled)
+			$approot = $this->getAppRoot($hostname, $path);
+			$ret = $this->writeConfiguration($approot, 'config_is_read_only', $enabled)
 				&& $this->writeConfiguration($approot, 'appstoreenabled', !$enabled);
+			if ($ret) {
+				$this->file_set_acls(
+					$approot . '/config/config.php',
+					[$this->web_get_user($hostname, $path) => 'rw']
+				);
+			}
+			return $ret;
 		}
 
 		private function writeConfiguration(string $approot, string $var, $val): bool
