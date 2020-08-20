@@ -136,11 +136,8 @@
 			$this->fortify($hostname, $path, 'max');
 			$this->fixRewriteBase($docroot);
 			$this->writeConfiguration($approot, 'htaccess.RewriteBase', '/' . trim($path, '/'));
-			$email = $opts['email'] ?? $this->common_get_email();
-			$fqdn = $this->web_normalize_hostname($hostname);
-			$proto = empty($opts['ssl']) ? 'http://' : 'https://';
 
-			$this->notifyInstalled($hostname, $path, $opts);
+			$this->notifyInstalled($hostname, $path, ['password' => $password ?? ''] + $opts);
 
 			return info('%(app)s installed - confirmation email with login info sent to %(email)s',
 				['app' => static::APP_NAME, 'email' => $opts['email']]);
@@ -191,7 +188,11 @@
 		public function fortify(string $hostname, string $path = '', string $mode = 'max', $args = []): bool
 		{
 			$approot = $this->getAppRoot($hostname, $path);
-			return parent::fortify($hostname, $path, $mode, $args) && $this->setLockdown($approot, $mode === 'max');
+			$ret = parent::fortify($hostname, $path, $mode, $args) && $this->setLockdown($approot, $mode === 'max');
+			if ($ret) {
+				$this->file_set_acls($approot . '/config/config.php', [$this->web_get_user($hostname, $path) => 'rw']);
+			}
+			return $ret;
 		}
 
 		/**

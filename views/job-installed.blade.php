@@ -9,7 +9,7 @@
 {{ $appname }} has been successfully installed on {{ $uri }}!
 
 ## Admin panel
-You can access the panel at [{{$proto}}{{$uri}}/{{ \Module\Support\Webapps\App\Type\Handler::ADMIN_PATH }}]({{$proto}}{{$uri}}/{{ \Module\Support\Webapps\App\Type\Handler::ADMIN_PATH }}) using the following information:
+You can access the panel at [{{$proto}}{{$uri}}{{ $app->getAdminPath() }}]({{$proto}}{{$uri}}{{ $app->getAdminPath() }}) using the following information:
 
 **Login**: <code>{{ $login }}</code><br/>
 **Password**: <code>{{ str_replace('@', '\\@', $password) }}</code>
