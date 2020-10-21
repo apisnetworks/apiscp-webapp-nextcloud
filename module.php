@@ -53,7 +53,13 @@
 					['what' => 'MySQL', 'app' => static::APP_NAME]);
 			}
 			if (!version_compare($this->php_version(), '7.2', '>=')) {
-				return error('Nextcloud requires PHP7.2');
+				return error('%(app)s requires PHP %(minver).1f',
+					['app' => static::APP_NAME, 'minver' => 7.2]
+				);
+			}
+
+			if (!$this->php_jailed()) {
+				return error("%s requires PHP-FPM by setting apache,jail=1 in service configuration", static::APP_NAME);
 			}
 
 			if (!$this->php_composer_exists()) {
