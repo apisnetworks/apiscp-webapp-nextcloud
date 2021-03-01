@@ -341,19 +341,17 @@
 					$this->get_version($hostname, $path)
 				)
 			);
-			$ret = serial(function () use ($docroot, $newversion) {
+			$ret = serial(function () use ($docroot, $newversion, $hostname, $path) {
 				$dlUrl = 'https://download.nextcloud.com/server/releases/nextcloud-' . $newversion . '.tar.bz2';
 				$this->download($dlUrl, "$docroot/nextcloud.tar.bz2");
 				$this->pman_run('cd %(chdir)s && mv -f nextcloud/{*,.*} .', ['chdir' => $docroot], null, ['user' => $this->getDocrootUser($docroot)]);
 				$this->file_delete("$docroot/nextcloud", true);
-				$ret = $this->execPhp($docroot, 'occ --no-warnings app:update --all');
-				if (!$ret['success']) {
-					return error("Failed to upgrade all apps: %s", $ret['stdout']);
-				}
 				$ret = $this->execPhp($docroot, 'occ --no-warnings upgrade');
 				if (!$ret['success']) {
 					return error("Failed to upgrade %s: %s", static::APP_NAME, $ret['stdout']);
 				}
+				$this->execPhp($docroot, 'occ --no-warnings maintenance:mode --off');
+				$this->fortify($hostname, $path, array_get($this->getOptions($docroot), 'fortify', 'max'));
 				return $ret['success'] ?: error("Failed to upgrade %s: %s", static::APP_NAME, $ret['stderr']);
 			});
 
