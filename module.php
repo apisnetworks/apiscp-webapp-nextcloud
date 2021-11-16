@@ -351,7 +351,7 @@
 					return error("Failed to upgrade %s: %s", static::APP_NAME, $ret['stdout']);
 				}
 				$this->execPhp($docroot, 'occ --no-warnings maintenance:mode --off');
-				$this->fortify($hostname, $path, array_get($this->getOptions($docroot), 'fortify', 'max'));
+				$this->fortify($hostname, $path, array_get($this->getOptions($docroot), 'fortify') ?: 'max');
 				return $ret['success'] ?: error("Failed to upgrade %s: %s", static::APP_NAME, $ret['stderr']);
 			});
 
