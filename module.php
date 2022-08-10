@@ -11,6 +11,7 @@
 	 *  +------------------------------------------------------------+
 	 */
 
+	use Module\Support\Webapps\App\Type\Nextcloud\TreeWalker;
 	use Module\Support\Webapps\Composer;
 	use Module\Support\Webapps\DatabaseGenerator;
 	use Module\Support\Webapps\VersionFetcher\Github;
@@ -193,6 +194,7 @@
 		 */
 		public function fortify(string $hostname, string $path = '', string $mode = 'max', $args = []): bool
 		{
+			$this->writeConfiguration($this->getAppRoot($hostname, $path), 'config_is_read_only', false);
 			return parent::fortify($hostname, $path, $mode, $args) &&
 				$this->setLockdown($hostname, $path, $mode === 'max');
 		}
@@ -422,8 +424,8 @@
 		private function setLockdown(string $hostname, string $path, bool $enabled): bool
 		{
 			$approot = $this->getAppRoot($hostname, $path);
-			$ret = $this->writeConfiguration($approot, 'config_is_read_only', $enabled)
-				&& $this->writeConfiguration($approot, 'appstoreenabled', !$enabled);
+			$ret = $this->writeConfiguration($approot, 'appstoreenabled', !$enabled) && $this->writeConfiguration($approot,
+					'config_is_read_only', $enabled);
 			if ($ret) {
 				$this->file_set_acls(
 					$approot . '/config/config.php',
@@ -435,6 +437,9 @@
 
 		private function writeConfiguration(string $approot, string $var, $val): bool
 		{
+			if ($var === 'config_is_read_only') {
+				return $this->directWrite($approot, $var, $val);
+			}
 			$args = [
 				'var'  => $var,
 				'idx'  => is_array($val) ? key($val) : null,
@@ -448,6 +453,11 @@
 				$approot,
 				'occ --no-warnings config:system:set %(var)s %(idx)s --type=%(type)s --value=%(val)s', $args);
 			return $ret['success'] ?: error("Failed to set %s: %s", $var, $ret['stderr']);
+		}
+
+		private function directWrite(string $approot, string $var, $val): bool
+		{
+			return TreeWalker::instantiateContexted($this->getAuthContext(), [$approot . '/config/config.php'])->set($var, $val)->save();
 		}
 
 		public function plugin_status(string $hostname, string $path = '', string $plugin = null)
