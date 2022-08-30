@@ -143,7 +143,8 @@ class TreeWalker
 		}
 		if ($stmt->expr->var->name !== self::STORAGE_VAR && !$append) {
 			return $this;
-		} else if ($stmt->expr->var->name !== self::STORAGE_VAR) {
+		}
+		if ($stmt->expr->var->name !== self::STORAGE_VAR) {
 			fatal("Missing %s", self::STORAGE_VAR);
 		}
 
@@ -160,8 +161,8 @@ class TreeWalker
 			$item->value = $this->inferType($new);
 		} else {
 			$stmt->expr->expr->items[] = new Node\Expr\ArrayItem(
-				new Node\Scalar\String_($var),
-				$this->inferType($new)
+				$this->inferType($new),
+				new Node\Scalar\String_($var)
 			);
 		}
 
