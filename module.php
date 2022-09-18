@@ -140,9 +140,10 @@
 
 			$this->initializeMeta($docroot, $opts);
 
-			$this->fortify($hostname, $path, 'max');
-			$this->fixRewriteBase($docroot);
 			$this->writeConfiguration($approot, 'htaccess.RewriteBase', '/' . trim($path, '/'));
+			$this->fixRewriteBase($docroot);
+
+			$this->fortify($hostname, $path, 'max');
 
 			$this->notifyInstalled($hostname, $path, ['password' => $password ?? ''] + $opts);
 
@@ -348,11 +349,12 @@
 				$this->download($dlUrl, "$docroot/nextcloud.tar.bz2");
 				$this->pman_run('cd %(chdir)s && mv -f nextcloud/{*,.*} .', ['chdir' => $docroot], null, ['user' => $this->getDocrootUser($docroot)]);
 				$this->file_delete("$docroot/nextcloud", true);
+				$this->writeConfiguration($docroot, 'config_is_read_only', false);
 				$ret = $this->execPhp($docroot, 'occ --no-warnings upgrade');
-				if (!$ret['success']) {
-					return error("Failed to upgrade %s: %s", static::APP_NAME, $ret['stdout']);
+				if ($ret['success']) {
+					$this->execPhp($docroot, 'occ --no-warnings maintenance:mode --off');
 				}
-				$this->execPhp($docroot, 'occ --no-warnings maintenance:mode --off');
+
 				$this->fortify($hostname, $path, array_get($this->getOptions($docroot), 'fortify') ?: 'max');
 				return $ret['success'] ?: error("Failed to upgrade %s: %s", static::APP_NAME, $ret['stderr']);
 			});
