@@ -211,7 +211,11 @@
 		{
 			$approot = $this->getAppRoot($hostname, $path);
 			$ret = $this->execPhp($approot, 'occ --no-warnings -V');
-			return $ret['success'] ? trim(strstr($ret['stdout'], ' ')) : null;
+			if (!$ret['success']) {
+				return null;
+			}
+			$pos = strrpos($ret['stdout'], ' ');
+			return trim(substr($ret['stdout'], $pos));
 		}
 
 		/**
