@@ -124,7 +124,7 @@
 				]);
 
 				if (!$ret['success']) {
-					return error("Failed to run occ maintenance:install: %s", $ret['stderr']);
+					return error("Failed to run occ maintenance:install: %s", coalesce($ret['stderr'], $ret['stdout']));
 				}
 				$this->reconfigure($hostname, $path, 'migrate', $hostname);
 				$this->file_chmod($approot . '/config/config.php', 604);
