@@ -351,7 +351,12 @@
 			$ret = serial(function () use ($docroot, $newversion, $hostname, $path) {
 				$dlUrl = 'https://download.nextcloud.com/server/releases/nextcloud-' . $newversion . '.tar.bz2';
 				$this->download($dlUrl, "$docroot/nextcloud.tar.bz2");
-				$this->pman_run('cd %(chdir)s && mv -f nextcloud/{*,.*} .', ['chdir' => $docroot], null, ['user' => $this->getDocrootUser($docroot)]);
+				// exclude data/ and config/ from upgrade per upgrade docs
+				// also exclude .htaccess or .user.ini fixups
+				$this->pman_run('cd %(chdir)s && rsync -aWx --delete ' .
+					'--exclude=.htaccess --exclude=.user.ini --exclude=config/ --exclude=nextcloud/ --exclude=data/ ' .
+					'nextcloud/ .',
+					['chdir' => $docroot], null, ['user' => $this->getDocrootUser($docroot)]);
 				$this->file_delete("$docroot/nextcloud", true);
 				$this->writeConfiguration($docroot, 'config_is_read_only', false);
 				$ret = $this->execPhp($docroot, 'occ --no-warnings upgrade');
@@ -360,7 +365,7 @@
 				}
 
 				$this->fortify($hostname, $path, array_get($this->getOptions($docroot), 'fortify') ?: 'max');
-				return $ret['success'] ?: error("Failed to upgrade %s: %s", static::APP_NAME, $ret['stderr']);
+				return $ret['success'] ?: error("Failed to upgrade %s: %s", static::APP_NAME, coalesce($ret['stderr'], $ret['stdout']));
 			});
 
 			$this->setInfo($docroot, [
