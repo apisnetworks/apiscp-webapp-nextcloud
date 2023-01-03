@@ -551,8 +551,13 @@
 				$value = null;
 			}
 			if (array_pull($param, 'migrate')) {
+				$hostnameCanonical = $hostname;
+				if (!str_contains($hostnameCanonical, '.') && $this->web_is_subdomain($hostnameCanonical)) {
+					// global subdomain, blech
+					$hostnameCanonical .= '.*';
+				}
 				$approot = $this->getAppRoot($hostname, $path);
-				$this->execPhp($approot, 'occ config:system:set trusted_domains 1 --value=%s', [$hostname]);
+				$this->execPhp($approot, 'occ config:system:set trusted_domains 1 --value=%s', [$hostnameCanonical]);
 			}
 
 			if (empty($param)) {
