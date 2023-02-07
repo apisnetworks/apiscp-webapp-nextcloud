@@ -90,14 +90,15 @@
 				return false;
 			}
 
-			$args['version'] = $opts['version'];
-
 			$dlUrl = 'https://download.nextcloud.com/server/releases/nextcloud-' . $opts['version'] . '.tar.bz2';
 			$oldex = \Error_Reporter::exception_upgrade();
 			$approot = $this->getAppRoot($hostname, $path);
 			try {
 				$this->download($dlUrl, "$docroot/nextcloud.tar.bz2");
 				$this->file_move("$docroot/nextcloud/", $docroot) && $this->file_delete("$docroot/nextcloud", true);
+				if (($user = $this->getDocrootUser($docroot)) !== $this->username) {
+					$this->file_chown($docroot, $user, true);
+				}
 				$db = DatabaseGenerator::mysql($this->getAuthContext(), $hostname);
 				$db->connectionLimit = max($db->connectionLimit, 15);
 				$db->dbArgs = [
@@ -118,7 +119,7 @@
 						'dbname' => $db->database,
 						'dbpassword' => $db->password,
 						'dbuser' => $db->username,
-						'admin' => $this->username,
+						'admin' => $opts['user'] ?? $this->username,
 						'passwd' => $password ?? $opts['password'],
 						'datadir' => !empty($opts['datadir']) ? '--data-dir=' . escapeshellarg($opts['datadir']) : null
 				]);
@@ -127,8 +128,19 @@
 					return error("Failed to run occ maintenance:install: %s", coalesce($ret['stderr'], $ret['stdout']));
 				}
 				$this->reconfigure($hostname, $path, 'migrate', $hostname);
+				$acls = [
+					$this->web_get_user($docroot, $path) => 'r'
+				];
 				$this->file_chmod($approot . '/config/config.php', 604);
-				$this->file_set_acls($docroot . '/config/config.php', [$this->web_get_user($docroot, $path) => 'r'], null, [File_Module::ACL_NO_RECALC_MASK => false]);
+				$this->file_set_acls($docroot . '/config/config.php', $acls, null, [File_Module::ACL_NO_RECALC_MASK => false]);
+				if ($opts['user'] !== $this->username) {
+					$this->file_chown($docroot, $opts['user'], true);
+					$user = $this->getDocrootUser($docroot . '/config/config.php');
+					if ($user !== $opts['user']) {
+						// reserved system user, e.g. "apache"
+						$this->file_chown($docroot . '/config/config.php', $user);
+					}
+				}
 			} catch (\apnscpException $e) {
 				$this->file_delete($approot, true);
 				return error('Failed to install %s: %s', static::APP_NAME, $e->getMessage());
@@ -210,7 +222,7 @@
 		public function get_version(string $hostname, string $path = ''): ?string
 		{
 			$approot = $this->getAppRoot($hostname, $path);
-			$ret = $this->execPhp($approot, 'occ --no-warnings -V');
+			$ret = $this->execOcc($approot, '--no-warnings -V');
 			if (!$ret['success']) {
 				return null;
 			}
@@ -359,9 +371,9 @@
 					['chdir' => $docroot], null, ['user' => $this->getDocrootUser($docroot)]);
 				$this->file_delete("$docroot/nextcloud", true);
 				$this->writeConfiguration($docroot, 'config_is_read_only', false);
-				$ret = $this->execPhp($docroot, 'occ --no-warnings upgrade');
+				$ret = $this->execOcc($docroot, '--no-warnings upgrade');
 				if ($ret['success']) {
-					$this->execPhp($docroot, 'occ --no-warnings maintenance:mode --off');
+					$this->execOcc($docroot, '--no-warnings maintenance:mode --off');
 				}
 
 				$this->fortify($hostname, $path, array_get($this->getOptions($docroot), 'fortify') ?: 'max');
@@ -460,9 +472,9 @@
 			if (is_bool($val)) {
 				$args['val'] = $val ? 'true' : 'false';
 			}
-			$ret = $this->execPhp(
+			$ret = $this->execOcc(
 				$approot,
-				'occ --no-warnings config:system:set %(var)s %(idx)s --type=%(type)s --value=%(val)s', $args);
+				'--no-warnings config:system:set %(var)s %(idx)s --type=%(type)s --value=%(val)s', $args);
 			return $ret['success'] ?: error("Failed to set %s: %s", $var, $ret['stderr']);
 		}
 
@@ -520,7 +532,7 @@
 			}
 			$approot = $this->getAppRoot($hostname, $path);
 			if ($password = array_pull($fields, 'password')) {
-				$ret = $this->execPhp($approot, 'occ user:resetpassword --no-warnings --password-from-env %s', [$admin], ['OC_PASS' => $password]);
+				$ret = $this->execOcc($approot, 'user:resetpassword --no-warnings --password-from-env %s', [$admin], ['OC_PASS' => $password]);
 				if (!$ret['success']) {
 					return error("Failed to change password for %s: %s", $admin, $ret['stdout']);
 				}
@@ -532,7 +544,7 @@
 		public function get_admin(string $hostname, string $path = ''): ?string
 		{
 			$approot = $this->getAppRoot($hostname, $path);
-			$ret = $this->execPhp($approot, 'occ -i --output=json --no-warnings user:list');
+			$ret = $this->execOcc($approot, '-i --output=json --no-warnings user:list');
 			if (!$ret['success']) {
 				return null;
 			}
@@ -557,7 +569,7 @@
 					$hostnameCanonical .= '.*';
 				}
 				$approot = $this->getAppRoot($hostname, $path);
-				$this->execPhp($approot, 'occ config:system:set trusted_domains 1 --value=%s', [$hostnameCanonical]);
+				$this->execOcc($approot, 'config:system:set trusted_domains 1 --value=%s', [$hostnameCanonical]);
 			}
 
 			if (empty($param)) {
@@ -573,5 +585,21 @@
 		public function reconfigurables(string $hostname, string $path = ''): array
 		{
 			return parent::reconfigurables($hostname, $path);
+		}
+
+		/**
+		 * OCC wrapper to run as config.php owner
+		 *
+		 * @param string $docroot
+		 * @param string $cmd
+		 * @param array  $args
+		 * @return array
+		 */
+		private function execOcc(string $docroot, string $cmd, array $args = []): array
+		{
+			$user = $this->getDocrootUser($docroot . '/config/config.php');
+
+			return \Module\Support\Webapps\PhpWrapper::instantiateContexted(\Auth::context($user,
+				$this->site))->exec($docroot, "occ $cmd", $args);
 		}
 	}
