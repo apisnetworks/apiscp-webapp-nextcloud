@@ -153,6 +153,9 @@
 			$this->initializeMeta($docroot, $opts);
 
 			$this->writeConfiguration($approot, 'htaccess.RewriteBase', '/' . trim($path, '/'));
+			if (version_compare($opts['version'], '24.0.0', '>=')) {
+				$this->execOcc($approot, 'maintenance:update:htaccess');
+			}
 			$this->fixRewriteBase($docroot);
 
 			$this->fortify($hostname, $path, 'max');
@@ -590,16 +593,16 @@
 		/**
 		 * OCC wrapper to run as config.php owner
 		 *
-		 * @param string $docroot
+		 * @param string $approot
 		 * @param string $cmd
 		 * @param array  $args
 		 * @return array
 		 */
-		private function execOcc(string $docroot, string $cmd, array $args = []): array
+		private function execOcc(string $approot, string $cmd, array $args = []): array
 		{
-			$user = $this->getDocrootUser($docroot . '/config/config.php');
+			$user = $this->getDocrootUser($approot . '/config/config.php');
 
 			return \Module\Support\Webapps\PhpWrapper::instantiateContexted(\Auth::context($user,
-				$this->site))->exec($docroot, "occ $cmd", $args);
+				$this->site))->exec($approot, "occ $cmd", $args);
 		}
 	}
