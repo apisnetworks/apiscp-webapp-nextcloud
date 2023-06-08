@@ -598,11 +598,11 @@
 		 * @param array  $args
 		 * @return array
 		 */
-		private function execOcc(string $approot, string $cmd, array $args = []): array
+		private function execOcc(string $approot, string $cmd, array $args = [], array $env = []): array
 		{
 			$user = $this->getDocrootUser($approot . '/config/config.php');
 
 			return \Module\Support\Webapps\PhpWrapper::instantiateContexted(\Auth::context($user,
-				$this->site))->exec($approot, "occ $cmd", $args);
+				$this->site))->exec($approot, "occ $cmd", $args, $env);
 		}
 	}
