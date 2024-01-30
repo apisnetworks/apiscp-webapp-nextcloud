@@ -21,77 +21,14 @@ use PhpParser\Node;
 /**
  * Class AST
  *
- * @package Module\Support\Webapps\App\Type\Wordpress
+ * @package Module\Support\Webapps\App\Type\Nextcloud
  *
  */
-class TreeWalker
+class TreeWalker extends \Module\Support\Php\TreeWalker
 {
-	use \apnscpFunctionInterceptorTrait;
-	use \ContextableTrait;
-
 	const STORAGE_VAR = 'CONFIG';
 
-	/**
-	 * @var \PhpParser\Node\Stmt[]
-	 */
-	protected $ast;
-	/**
-	 * @var \PhpParser\NodeTraverser
-	 */
-	protected $traverser;
-
-	/** @var string filename */
-	protected $file;
-
-	/**
-	 * Util_AST constructor.
-	 *
-	 * @param string $file
-	 * @throws \ArgumentError
-	 * @throws \PhpParser\Error
-	 */
-	protected function __construct(string $file)
-	{
-		if (!$this->file_exists($file)) {
-			throw new \ArgumentError(\ArgumentFormatter::format("Target file %s does not exist", [$file]));
-		}
-		$code = $this->file_get_file_contents($this->file = $file);
-		$parser = (new \PhpParser\ParserFactory)->create(\PhpParser\ParserFactory::PREFER_PHP7);
-		$this->ast = $parser->parse($code);
-	}
-
-	/**
-	 * Replace matching define() rules
-	 *
-	 * @param string $var search variable
-	 * @param mixed  $new replacement value
-	 * @return self
-	 */
-	public function replace(string $var, $new): self
-	{
-		return $this->walkReplace($var, $new, false);
-	}
-
-	/**
-	 * Set matching define() statements or add
-	 *
-	 * @param string $var search variable
-	 * @param mixed  $new replacement value
-	 * @return self
-	 */
-	public function set(string $var, $new): self
-	{
-		return $this->walkReplace($var, $new, true);
-	}
-
-	/**
-	 * Get value from AST
-	 *
-	 * @param string $var
-	 * @param        $default
-	 * @return mixed|null
-	 */
-	public function get(string $var, $default = null)
+	public function get(string $var, mixed $default = null): mixed
 	{
 		/** @var Node $found */
 		$found = null;
@@ -127,14 +64,30 @@ class TreeWalker
 	}
 
 	/**
+	 * @{@inheritDoc}
+	 */
+	public function replace(string $var, mixed $new): self
+	{
+		return $this->walkReplace($var, $new, false);
+	}
+
+	/**
+	 * @{@inheritDoc}
+	 */
+	public function set(string $var, mixed $new): self
+	{
+		return $this->walkReplace($var, $new, true);
+	}
+
+	/**
 	 * Walk tree applying substitution rules
 	 *
 	 * @param string $var
-	 * @param        $new
+	 * @param mixed  $new
 	 * @param bool   $append append if not found
 	 * @return $this
 	 */
-	private function walkReplace(string $var, $new, bool $append = false): self
+	private function walkReplace(string $var, mixed $new, bool $append = false): self
 	{
 		foreach ($this->ast as &$stmt) {
 			if ($stmt->expr->var->name === self::STORAGE_VAR) {
@@ -168,33 +121,4 @@ class TreeWalker
 
 		return $this;
 	}
-
-	private function inferType($val): \PhpParser\NodeAbstract
-	{
-		return \PhpParser\BuilderHelpers::normalizeValue($val);
-	}
-
-	/**
-	 * Generate configuration
-	 *
-	 * @return string
-	 */
-	public function __toString()
-	{
-		return (new \PhpParser\PrettyPrinter\Standard())->prettyPrint(
-			$this->ast
-		);
-	}
-
-	/**
-	 * Save configuration
-	 *
-	 * @return bool
-	 */
-	public function save(): bool
-	{
-		return $this->file_put_file_contents($this->file, '<?php' . "\n" . (string)$this);
-	}
-
-
 }
