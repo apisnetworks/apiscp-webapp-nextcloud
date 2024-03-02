@@ -11,6 +11,7 @@
 	 *  +------------------------------------------------------------+
 	 */
 
+	use Module\Support\Webapps\App\Type\Nextcloud\Handler;
 	use Module\Support\Webapps\App\Type\Nextcloud\TreeWalker;
 	use Module\Support\Webapps\Composer;
 	use Module\Support\Webapps\DatabaseGenerator;
@@ -359,7 +360,7 @@
 			$newversion = $version ?? \Opcenter\Versioning::maxVersion(
 				$this->get_versions(),
 				$this->parseLock(
-					\Module\Support\Webapps\App\Loader::fromDocroot('nextcloud', $docroot, $this->getAuthContext())->getOptions()['verlock'] ?? self::DEFAULT_VERSION_LOCK,
+					\Module\Support\Webapps\App\Loader::fromDocroot('nextcloud', $docroot, $this->getAuthContext())->getOptions()['verlock'] ?? Handler::DEFAULT_FORTIFICATION,
 					$this->get_version($hostname, $path)
 				)
 			);
@@ -379,7 +380,7 @@
 					$this->execOcc($docroot, '--no-warnings maintenance:mode --off');
 				}
 
-				$this->fortify($hostname, $path, array_get($this->getOptions($docroot), 'fortify') ?: 'max');
+				$this->fortify($hostname, $path, array_get($this->getOptions($docroot), 'fortify') ?: Handler::DEFAULT_FORTIFICATION);
 				return $ret['success'] ?: error("Failed to upgrade %s: %s", static::APP_NAME, coalesce($ret['stderr'], $ret['stdout']));
 			});
 
