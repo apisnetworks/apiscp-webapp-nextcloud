@@ -64,28 +64,16 @@
 				return error("%s requires PHP-FPM by setting apache,jail=1 in service configuration", static::APP_NAME);
 			}
 
-			if (!$this->php_composer_exists()) {
-				return error('composer missing! contact sysadmin');
-			}
-
 			if (!$this->hasMemoryAllowance(512, $available)) {
 				return error("%(app)s requires at least %(min)d MB memory, `%(found)d' MB provided for account",
 					['app' => 'Nextcloud', 'min' => 512, 'found' => $available]);
 			}
 
-			// Same situation as with Ghost. We can't install under a path for fear of
-			// leaking information
-			if ($path) {
-				return error('Composer projects may only be installed directly on a subdomain or domain without a child path, e.g. https://domain.com but not https://domain.com/path');
-			}
-
-			if (!($docroot = $this->getDocumentRoot($hostname, $path))) {
-				return error("failed to normalize path for `%s'", $hostname);
-			}
-
 			if (!$this->parseInstallOptions($opts, $hostname, $path)) {
 				return false;
 			}
+
+			$docroot = $this->getDocumentRoot($hostname, $path);
 
 			if (isset($opts['datadir']) && !$this->checkDataDirectory($opts['datadir'])) {
 				return false;
