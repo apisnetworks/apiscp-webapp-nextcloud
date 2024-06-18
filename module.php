@@ -272,7 +272,11 @@
 			$versions = (new Github)->setMode('tags')->fetch('nextcloud/server');
 			$versions = array_filter(array_combine(array_column($versions, 'version'), $versions),
 				static function ($v) {
-					return strspn($v['version'], '0123456789.') === \strlen($v['version']);
+					if (strspn($v['version'], '0123456789.') === \strlen($v['version'])) {
+						return false;
+					}
+
+					return $v;
 				});
 			$cache->set($key, $versions, 43200);
 
