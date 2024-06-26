@@ -139,15 +139,11 @@
 
 			// by default, let's only open up ACLs to the bare minimum
 
-			$this->initializeMeta($docroot, $opts);
-
 			$this->writeConfiguration($approot, 'htaccess.RewriteBase', '/' . trim($path, '/'));
 			if (version_compare($opts['version'], '24.0.0', '>=')) {
 				$this->execOcc($approot, 'maintenance:update:htaccess');
 			}
 			$this->fixRewriteBase($docroot);
-
-			$this->fortify($hostname, $path, 'max');
 
 			$this->notifyInstalled($hostname, $path, ['password' => $password ?? ''] + $opts);
 
