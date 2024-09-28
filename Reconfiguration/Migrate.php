@@ -44,7 +44,7 @@
 					'olddomain'   => array_get($this->getComponents(), 'host', $this->app->getHostname()),
 					'oldpath'     => rtrim(array_get($this->getComponents(), 'path', ''), '/'),
 					'newdomain'   => $sslhostname,
-					'newpath'     => $path ? "/${path}" : $path
+					'newpath'     => $path ? "/{$path}" : $path
 				]);
 
 			if (!array_get($ret, 'success', false)) {
